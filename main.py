@@ -17,24 +17,20 @@ def create_dataframe_get(msg):
     return df
 
 
-def buy_model(dt_crypto1, dt_crypto2, dt_fiat):
-    price_usdt = dt_crypto1['Price'].iloc[-1]
-    price_eur = dt_crypto2['Price'].iloc[-1]
-    price_fiat = dt_fiat['Price'].iloc[-1]
-    price_exchange = price_eur * price_fiat
-    price_rate = 100 - price_usdt * 100 / price_exchange
+def buy_model(price_crypto_usdt, price_crypto_usdc):
+    price_rate_usdt = 100 - price_crypto_usdt * 100 / price_crypto_usdc
     # 0.075 fee
-    if price_rate >= 0.35:
+    if price_rate_usdt >= 0.25:
         print(datetime.datetime.now())
-        print(f'TRADING usdt at rate: {price_rate}')
+        print(f'TRADING usdt at rate: {price_rate_usdt}')
         return 'usdt'
-    elif price_rate <= -0.35:
+    elif price_rate_usdt <= -0.25:
         print(datetime.datetime.now())
-        print(f'TRADING eur at rate: {price_rate}')
-        return 'eur'
+        print(f'TRADING usdc at rate: {price_rate_usdt}')
+        return 'usdc'
     else:
         print(datetime.datetime.now())
-        print(f'NOT BUY at rate: {price_rate}')
+        print(f'NOT BUY at rate: {price_rate_usdt}')
         return None
 
 
@@ -53,9 +49,8 @@ class BnbConnection:
         return float(balance_coin)
 
     # check quantity
-    async def buy_order(self, qty, price):
-        buy_order = await self.client.create_order(symbol=self.symbol, side='BUY', type='LIMIT_MAKER', price=price,
-                                                   quantity=qty)
+    async def buy_order(self, qty):
+        buy_order = await self.client.create_order(symbol=self.symbol, side='BUY', type='MARKET', quantity=qty)
         print(buy_order)
         return buy_order
 
@@ -72,34 +67,36 @@ class BnbConnection:
 
 
 async def main():
+    crypto_symbol = 'EOS'
     client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
-    eos_usdt = BnbConnection(symbol='EOSUSDT', client=client)
-    eos_eur = BnbConnection(symbol='EOSEUR', client=client)
-    eur_usdt = BnbConnection(symbol='EURUSDT', client=client)
+    crypto_usdt = BnbConnection(symbol=f'{crypto_symbol}USDT', client=client)
+    crypto_usdc = BnbConnection(symbol=f'{crypto_symbol}USDC', client=client)
+    usdc_usdt = BnbConnection(symbol='USDCUSDT', client=client)
 
-    async with eos_usdt.get_bnbsm() as tscm_eos_usdt:
-        async with eos_eur.get_bnbsm() as tscm_eos_eur:
-            async with eur_usdt.get_bnbsm() as tscm_eur_usdt:
+    async with crypto_usdt.get_bnbsm() as tscm_crypto_usdt:
+        async with crypto_usdc.get_bnbsm() as tscm_crypto_usdc:
+            async with usdc_usdt.get_bnbsm() as tscm_usdc_usdt:
                 while True:
-                    res = await tscm_eos_usdt.recv()
-                    dt_eos_usdt = create_dataframe_get(res)
-                    price_usdt = dt_eos_usdt['Price'].iloc[-1]
-                    res = await tscm_eos_eur.recv()
-                    dt_eos_eur = create_dataframe_get(res)
-                    price_eur = dt_eos_eur['Price'].iloc[-1]
-                    res = await tscm_eur_usdt.recv()
-                    dt_eur_usdt = create_dataframe_get(res)
-                    # usdt to eur
-                    if buy_model(dt_crypto1=dt_eos_usdt, dt_crypto2=dt_eos_eur, dt_fiat=dt_eur_usdt) == 'usdt':
-                        await eos_usdt.buy_order(qty=3, price=price_usdt - (0.2 * price_usdt / 100))
-                        await eos_eur.sell_order(qty=3, price=price_eur + (0.1 * price_eur / 100))
-                        await eur_usdt.exchange_order(qty=eur_usdt.get_balance_coin('EUR'))
+                    res = await tscm_crypto_usdt.recv()
+                    dt_crypto_usdt = create_dataframe_get(res)
+                    price_crypto_usdt = dt_crypto_usdt['Price'].iloc[-1]
+                    res = await tscm_crypto_usdc.recv()
+                    dt_crypto_usdc = create_dataframe_get(res)
+                    price_crypto_usdc = dt_crypto_usdc['Price'].iloc[-1]
+                    res = await tscm_usdc_usdt.recv()
+                    dt_usdc_usdt = create_dataframe_get(res)
+                    price_usdc_usdt = dt_usdc_usdt['Price'].iloc[-1]
+                    # usdt to usdc
+                    if buy_model(price_crypto_usdt=price_crypto_usdt, price_crypto_usdc=price_crypto_usdc) == 'usdt':
+                        # await crypto_usdt.buy_order(qty=3)
+                        # await crypto_usdc.sell_order(qty=3, price=round(price_usdc + (0.08 * price_usdc / 100), 3))
+                        #await usdc_usdt.exchange_order(qty=usdc_usdt.get_balance_coin('usdc'))
                         break
-                    # eur to usdt
-                    if buy_model(dt_crypto1=dt_eos_usdt, dt_crypto2=dt_eos_eur, dt_fiat=dt_eur_usdt) == 'eur':
-                        await eos_eur.buy_order(qty=3, price=price_eur - (0.2 * price_eur / 100))
-                        await eos_usdt.sell_order(qty=3, price=price_usdt + (0.1 * price_usdt / 100))
-                        await eur_usdt.exchange_order(qty=eur_usdt.get_balance_coin('USDT'))
+                    # usdc to usdt
+                    if buy_model(price_crypto_usdt=price_crypto_usdt, price_crypto_usdc=price_crypto_usdc) == 'usdc':
+                        # await crypto_usdc.buy_order(qty=3)
+                        # await crypto_usdt.sell_order(qty=3, price=round(price_usdt + (0.08 * price_usdt / 100), 3))
+                        #await usdc_usdt.exchange_order(qty=usdc_usdt.get_balance_coin('USDT'))
                         break
                     sleep(10)
 
