@@ -1,6 +1,7 @@
 import os
 from time import sleep
 from binance import AsyncClient
+from binance.client import Client
 
 from arb import create_dataframe_get
 from bnb_con.bnbcon import BnbConnection
@@ -17,11 +18,34 @@ def try_connection(crypto_symbol, client):
         try_connection(crypto_symbol, client)
 
 
+def get_crypto_list(client):
+    exchange_info = client.get_exchange_info()
+    return exchange_info
+
+
 async def main():
-    crypto_symbol = 'PORTO'
+    crypto_symbol = 'BTC'
     usdt_qty = 30
     client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    client_direct = Client(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
     crypto_con = try_connection(crypto_symbol=crypto_symbol, client=client)
+
+    # Check if pair exist
+    crypto_dict = get_crypto_list(client=client_direct)
+    exist = None
+    while not exist:
+        symbols_list = crypto_dict['symbols']
+        for symbol_pair in symbols_list:
+            if f'{crypto_symbol}USDT' == symbol_pair['symbol']:
+                exist = True
+                break
+            else:
+                exist = False
+        if not exist:
+            print(f'{crypto_symbol}USDT doesnt exist. Retrying...')
+            sleep(2)
+            # exit(1)
+
     async with crypto_con.get_bnbsm() as tscm_crypto_usdt:
         res = await tscm_crypto_usdt.recv()
         dt_crypto_usdt = create_dataframe_get(res)
@@ -29,8 +53,7 @@ async def main():
         print(f"Quantity to buy {quantity_trade}")
         print(f"Buy order at: \n {dt_crypto_usdt}")
         # await crypto_con.buy_order_market(qty=round(quantity_trade, 2))
-        # Press to continue...
-        sleep(10)
+        input("Press Enter to continue...")
         # await crypto_con.sell_order_market(qty=round(quantity_trade, 2))
         await client.close_connection()
         print("Trade done.")
