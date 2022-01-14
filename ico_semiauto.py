@@ -18,20 +18,8 @@ def try_connection(crypto_symbol, client):
         try_connection(crypto_symbol, client)
 
 
-def get_crypto_list(client):
-    exchange_info = client.get_exchange_info()
-    return exchange_info
-
-
-async def main():
-    crypto_symbol = 'BTC'
-    usdt_qty = 30
-    client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
-    client_direct = Client(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
-    crypto_con = try_connection(crypto_symbol=crypto_symbol, client=client)
-
-    # Check if pair exist
-    crypto_dict = get_crypto_list(client=client_direct)
+def check_if_cryptopair_exists(client, crypto_symbol):
+    crypto_dict = client.get_exchange_info()
     exist = None
     while not exist:
         symbols_list = crypto_dict['symbols']
@@ -44,7 +32,16 @@ async def main():
         if not exist:
             print(f'{crypto_symbol}USDT doesnt exist. Retrying...')
             sleep(2)
-            # exit(1)
+
+
+async def main():
+    crypto_symbol = 'BTC'
+    usdt_qty = 30
+    client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    client_direct = Client(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
+    crypto_con = try_connection(crypto_symbol=crypto_symbol, client=client)
+    # Check if pair exist
+    check_if_cryptopair_exists(client=client_direct, crypto_symbol=crypto_symbol)
 
     async with crypto_con.get_bnbsm() as tscm_crypto_usdt:
         res = await tscm_crypto_usdt.recv()
