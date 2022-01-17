@@ -1,5 +1,6 @@
 import os
 from time import sleep
+import pandas as pd
 from binance import AsyncClient
 from binance.client import Client
 
@@ -18,7 +19,7 @@ def try_connection(crypto_symbol, client):
         try_connection(crypto_symbol, client)
 
 
-def check_if_cryptopair_exists(client, crypto_symbol):
+def check_if_crypto_pair_exists(client, crypto_symbol):
     crypto_dict = client.get_exchange_info()
     exist = None
     while not exist:
@@ -34,26 +35,43 @@ def check_if_cryptopair_exists(client, crypto_symbol):
             sleep(2)
 
 
+def check_crypto_balance(client, crypto_symbol):
+    info = client.get_account()
+    df = pd.DataFrame(info["balances"])
+    df["free"] = df["free"].astype(float).round(4)
+    df = df.loc[(df['asset'] == crypto_symbol) & (df["free"] > 0)]
+    return df["free"].item()
+
+
 async def main():
     crypto_symbol = 'BTC'
-    usdt_qty = 30
+    usdt_qty = 161
     client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
     client_direct = Client(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
     crypto_con = try_connection(crypto_symbol=crypto_symbol, client=client)
     # Check if pair exist
-    check_if_cryptopair_exists(client=client_direct, crypto_symbol=crypto_symbol)
-
+    check_if_crypto_pair_exists(client=client_direct, crypto_symbol=crypto_symbol)
+    try:
+        crypto_balance = check_crypto_balance(client=client_direct, crypto_symbol=crypto_symbol)
+    except Exception as e:
+        print(f"Balance of {crypto_symbol} is null")
+        crypto_balance = 0
+        pass
     async with crypto_con.get_bnbsm() as tscm_crypto_usdt:
         res = await tscm_crypto_usdt.recv()
         dt_crypto_usdt = create_dataframe_get(res)
-        quantity_trade = usdt_qty / dt_crypto_usdt['Price'].iloc[-1]
-        print(f"Quantity to buy {quantity_trade}")
+        quantity_buy = usdt_qty / dt_crypto_usdt['Price'].iloc[-1]
+        quantity_sell = quantity_buy + crypto_balance
+        print(f"Quantity to buy {quantity_buy}")
         print(f"Buy order at: \n {dt_crypto_usdt}")
-        # await crypto_con.buy_order_market(qty=round(quantity_trade, 2))
+        # await crypto_con.buy_order_market(qty=round(quantity_buy, 2))
         input("Press Enter to continue...")
-        # await crypto_con.sell_order_market(qty=round(quantity_trade, 2))
+        # await crypto_con.sell_order_market(qty=round(quantity_sell, 2))
+        print(f"Quantity sold {quantity_sell}")
         await client.close_connection()
         print("Trade done.")
+        await client.close_connection()
+        client_direct.close_connection()
 
 
 if __name__ == "__main__":
