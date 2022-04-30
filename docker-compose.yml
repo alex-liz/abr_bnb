@@ -1,0 +1,6 @@
+version: '3'
+services:
+  ico-semiauto:
+    build: .
+    volumes:
+      - .ico:/src

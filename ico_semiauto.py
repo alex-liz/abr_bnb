@@ -32,7 +32,7 @@ def check_if_crypto_pair_exists(client, crypto_symbol):
                 exist = False
         if not exist:
             print(f'{crypto_symbol}USDT doesnt exist. Retrying...')
-            sleep(2)
+            sleep(1)
 
 
 def check_crypto_balance(client, crypto_symbol):
@@ -59,8 +59,8 @@ def check_decimals(client, crypto_symbol):
 
 
 async def main():
-    crypto_symbol = 'ROSE'
-    usdt_qty = 161
+    crypto_symbol = 'LOKA'
+    usdt_qty = 162
     client = AsyncClient(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
     client_direct = Client(api_key=os.environ['API_KEY'], api_secret=os.environ['API_SECRET'])
     crypto_con = try_connection(crypto_symbol=crypto_symbol, client=client)
@@ -69,7 +69,7 @@ async def main():
     try:
         crypto_balance = check_crypto_balance(client=client_direct, crypto_symbol=crypto_symbol)
     except Exception as e:
-        print(f"Balance of {crypto_symbol} is null")
+        print(f"Balance of {crypto_symbol} is null.")
         crypto_balance = 0
         pass
     # Check crypto decimals
@@ -81,9 +81,9 @@ async def main():
         quantity_sell = quantity_buy + crypto_balance
         print(f"Quantity to buy {quantity_buy}")
         print(f"Buy order at: \n {dt_crypto_usdt}")
-        await crypto_con.buy_order_market(qty=round(quantity_buy, decimal))
-        input("Press Enter to continue...")
-        await crypto_con.sell_order_market(qty=round(quantity_sell, decimal))
+        # await crypto_con.buy_order_market(qty=round(quantity_buy, decimal))
+        # input("Press Enter to continue...")
+        # await crypto_con.sell_order_market(qty=round(quantity_sell, decimal))
         print(f"Quantity sold {quantity_sell}")
         await client.close_connection()
         print("Trade done.")
